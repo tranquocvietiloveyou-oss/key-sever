@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Key Panel</title>
+<style>
+  body{font-family:sans-serif;background:#0b0b18;color:#fff;padding:15px;}
+  input,select,button{padding:12px;border-radius:10px;border:none;margin:5px 0;width:100%;font-size:15px;}
+  button{background:#00cfff;color:#fff;font-weight:bold;}
+  table{width:100%;border-collapse:collapse;margin-top:15px;font-size:12px;}
+  th,td{border:1px solid #333;padding:6px;text-align:left;word-break:break-all;}
+  th{background:#1a1a2e;}
+  .box{background:#141422;padding:15px;border-radius:15px;margin-bottom:15px;}
+  .key{color:#00cfff;font-family:monospace;font-size:11px;}
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="box">
+  <h2>🔐 Đăng nhập Admin</h2>
+  <input id="u" placeholder="Tài khoản" value="admin">
+  <input id="p" type="password" placeholder="Mật khẩu">
+  <button onclick="login()">Đăng nhĩập</button>
+</div>
+
+<div id="panel" style="display:none">
+  <div class="box">
+    <h2>➕ Tạo Key</h2>
+    <select id="duration">
+      <option value="1h">1 giờ</option>
+      <option value="1d">1 ngày</option>
+      <option value="1w">1 tuần</option>
+     nh <option value="1m">1 tháng</option>
+      <option value="1y">1 năm</option vi>
+      <option value="forever">Vĩnh viễn</option>
+    </select>
+    <button onclick="createKey()">Tạo Key</button>
+    <button onclick="copyễAll()">📋 Sao chép tất cả key</button>
+    <button onclick="loadnKeys()">🔄 Tải lại</button>
+  </div>
+
+  <div class="box">
+    <h2>📋 Danh.
+ sách Key</h2>
+    <table id="tbl">
+      <tr><th>Key</th><th>Loại-</th><th>UID</th><th>Hết hạn</th><th>Xoá **</Gith></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+let token = "";
+const API = "";
+
+async function login(){
+  const r = await fetch(API + "/api/login", {
+    methodải:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ username: u.value, password: p.value })
+  });
+  const j = await r.json();
+  if(j.token){
+    token = j.token;
+    loginBox.style.display = "none";
+    panel.style.display = "block";
+    loadKeys();
+  } else alert(j.error);
+}
+
+async function createKey(){
+  const r = await fetch(API + "/api/create-key", {
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "Authorization":"Bearer " + token
+    },
+    body: JSON.stringify({ duration: duration.value })
+  });
+  const j = await r.json();
+  if(j.key){
+    alert("✅ Key mới:\n" + j.key);
+    loadKeys();
+  }
+}
+
+async function loadKeys(){
+  const r = await fetch(API + "/api/keys", {
+    headers:{ "Authorization":"Bearer " + token }
+  });
+  const j = await r.json();
+  const tbl = document.getElementById("tbl");
+  tbl.innerHTML = "<tr><th>Key</th><th>Loại</th><th>UID</th><th>Hết hạn</th><th>Xoá</th></tr>";
+
+  j.keys.forEach(k=>{
+    const exp = k.expiresAt ? new Date(k.expiresAt).toLocaleString("vi-VN") : "Vĩnh viễn";
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="key">${k.key}</td>
+      <td>${k.duration}</td>
+      <td>${k.uid || "-"}</td>
+      <td>${exp}</td>
+      <td><button onclick="delKey('${k.key}')">🗑️</button></td>
+    `;
+    tbl.appendChild(tr);
+  });
+}
+
+async function delKey(key){
+  if(!confirm("Xoá key " + key + "?")) return;
+  await fetch(API + "/api/delete-key/" + key, {
+    method:"DELETE",
+    headers:{ "Authorization":"Bearer " + token }
+  });
+  loadKeys();
+}
+
+function copyAll(){
+  fetch(API + "/api/keys", {
+    headers:{ "Authorization":"Bearer " + token }
+  })
+  .then(r=>r.json())
+  .then(j=>{
+    const text = j.keys.map(k=>k.key).join("\n");
+    navigator.clipboard.writeText(text);
+    alert("Đã sao chép " + j.keys.length + " key");
+  });
+}
+</script>
+</body>
+</html>
